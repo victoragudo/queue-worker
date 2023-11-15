@@ -18,19 +18,21 @@ func main() {
 		v, ok := item.(Email)
 		if ok {
 			fmt.Printf("%v: %v\n", v.t.String(), v.Message)
+			time.Sleep(time.Second)
 			return nil
 		}
 		return errors.New("unable to cast type")
 	})
 
-	worker := queue.NewQueueWorker(emailQueue, emailProcessor, time.Second/2)
+	worker := queue.NewQueueWorker(emailQueue, emailProcessor, time.Millisecond)
 
 	worker.Start()
 
 	go func() {
 		for {
+			println("Encolando mensaje...")
 			emailQueue.Enqueue(Email{Message: "Otro mensaje...", t: time.Now()})
-			time.Sleep(time.Second / 3)
+			time.Sleep(time.Millisecond * 100)
 		}
 	}()
 

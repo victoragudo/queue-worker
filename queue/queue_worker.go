@@ -1,6 +1,9 @@
 package queue
 
 import (
+	"context"
+	"fmt"
+	"golang.org/x/sync/semaphore"
 	"sync"
 	"time"
 )
@@ -26,6 +29,10 @@ func (w *Worker[T]) Start() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
+		defer func() {
+			w.closeChannel()
+		}()
+		var sem = semaphore.NewWeighted(int64(5))
 		for {
 			select {
 			case <-w.stopCh:
@@ -33,10 +40,18 @@ func (w *Worker[T]) Start() {
 			default:
 				item, ok := w.queue.TryDequeue()
 				if ok {
-					err := w.processor.Process(item)
+					fmt.Printf("Dequeue %v\n:", item)
+					err := sem.Acquire(context.TODO(), 1)
 					if err != nil {
-						println(err)
+						return
 					}
+					go func() {
+						defer sem.Release(1)
+						err := w.processor.Process(item)
+						if err != nil {
+							println(err)
+						}
+					}()
 				}
 				time.Sleep(w.processEvery)
 			}
@@ -47,4 +62,11 @@ func (w *Worker[T]) Start() {
 func (w *Worker[T]) Stop() {
 	close(w.stopCh)
 	w.wg.Wait()
+}
+
+func (w *Worker[T]) closeChannel() {
+	_, ok := <-w.stopCh
+	if ok {
+		close(w.stopCh)
+	}
 }
