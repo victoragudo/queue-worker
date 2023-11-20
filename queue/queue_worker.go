@@ -32,7 +32,7 @@ func (w *Worker[T]) Start() {
 		defer func() {
 			w.closeChannel()
 		}()
-		var sem = semaphore.NewWeighted(int64(5))
+		var sem = semaphore.NewWeighted(int64(10))
 		for {
 			select {
 			case <-w.stopCh:
@@ -40,6 +40,7 @@ func (w *Worker[T]) Start() {
 			default:
 				item, ok := w.queue.TryDequeue()
 				if ok {
+					println(w.queue.Size())
 					fmt.Printf("Dequeue %v\n:", item)
 					err := sem.Acquire(context.TODO(), 1)
 					if err != nil {
